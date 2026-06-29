@@ -16,9 +16,10 @@
     <!-- SheetJS للتصدير إلى Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <!-- مكتبات Firebase (Compat – النسخة الصحيحة لملف HTML عادي) -->
+    <!-- مكتبات Firebase (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
     <script>
         tailwind.config = {
@@ -244,7 +245,7 @@
             </div>
         </main>
 
-        <!-- المودالات -->
+        <!-- مودال تغيير كلمة المرور -->
         <div id="passwordModal" class="modal-overlay">
             <div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-lg font-bold text-slate-800 dark:text-white">تغيير كلمة المرور</h3><button onclick="closePasswordModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="fa-solid fa-xmark text-xl"></i></button></div>
                 <form id="passwordForm" onsubmit="saveNewPassword(event)" class="space-y-4">
@@ -256,6 +257,7 @@
             </div>
         </div>
 
+        <!-- مودال تعديل الطلب -->
         <div id="editModal" class="modal-overlay">
             <div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-lg font-bold text-slate-800 dark:text-white">تعديل الطلب</h3><button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="fa-solid fa-xmark text-xl"></i></button></div>
                 <form id="editForm" class="space-y-4">
@@ -271,18 +273,22 @@
             </div>
         </div>
 
+        <!-- مودال إدارة الفروع -->
         <div id="branchesModal" class="modal-overlay">
             <div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-lg font-bold text-slate-800 dark:text-white">إدارة الفروع</h3><button onclick="closeBranchesModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="fa-solid fa-xmark text-xl"></i></button></div><div class="space-y-3 mb-4 max-h-60 overflow-y-auto" id="branchesList"></div><div class="flex gap-2"><input type="text" id="newBranchName" class="flex-1 glass-input rounded-xl p-2 text-sm dark:text-white" placeholder="اسم الفرع الجديد"><button onclick="addBranch()" class="bg-sky-500 hover:bg-sky-600 text-white font-bold px-4 py-2 rounded-xl text-sm">إضافة</button></div></div>
         </div>
 
+        <!-- مودال تخصيص الأعمدة -->
         <div id="columnSettingsModal" class="modal-overlay">
             <div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-lg font-bold text-slate-800 dark:text-white">تخصيص الأعمدة</h3><button onclick="closeColumnSettings()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="fa-solid fa-xmark text-xl"></i></button></div><div class="space-y-2 max-h-80 overflow-y-auto" id="columnsCheckboxes"></div><button onclick="saveColumnSettings()" class="mt-4 w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2.5 rounded-xl text-sm">حفظ</button></div>
         </div>
 
+        <!-- مودال التأكيد -->
         <div id="confirmModal" class="modal-overlay">
             <div class="modal-content text-center"><div class="text-4xl mb-3 text-rose-500"><i class="fa-solid fa-circle-question"></i></div><h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2" id="confirmMessage"></h3><div class="flex justify-center gap-4 mt-5"><button onclick="confirmAction(false)" class="bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-500 py-2 px-6 rounded-xl font-bold">إلغاء</button><button onclick="confirmAction(true)" class="bg-rose-500 hover:bg-rose-600 text-white py-2 px-6 rounded-xl font-bold">تأكيد</button></div></div>
         </div>
 
+        <!-- مودال التنبيه -->
         <div id="alertModal" class="modal-overlay">
             <div class="modal-content text-center"><div class="text-4xl mb-3 text-sky-500"><i class="fa-solid fa-circle-info"></i></div><h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2" id="alertMessage"></h3><button onclick="closeAlert()" class="bg-sky-500 hover:bg-sky-600 text-white py-2 px-8 rounded-xl font-bold mt-4">حسنًا</button></div>
         </div>
@@ -294,7 +300,7 @@
     </div>
 
     <script>
-        // ========== 1. إعدادات Firebase الصحيحة ==========
+        // ========== إعدادات Firebase ==========
         const firebaseConfig = {
             apiKey: "AIzaSyCWOz9GlOG3aiYQLRoYgS13EjcNB0-zoBY",
             authDomain: "noor-eye-wear.firebaseapp.com",
@@ -305,16 +311,8 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
 
-        // ========== 2. إدارة المستخدمين ==========
-        function loadUsers() {
-            const storedUsers = localStorage.getItem('noor_users');
-            if (storedUsers) { return JSON.parse(storedUsers); }
-            return { admin: { password: '8080', role: 'admin', name: 'مدير النظام' }, user: { password: '1234', role: 'user', name: 'موظف استقبال' } };
-        }
-        function saveUsers(usersObj) { localStorage.setItem('noor_users', JSON.stringify(usersObj)); }
-
-        let users = loadUsers();
         let currentUser = null;
         let orders = [];
         let branches = JSON.parse(localStorage.getItem('noor_branches')) || ['رشيد', 'سموحة', 'دمنهور'];
@@ -322,39 +320,7 @@
         let currentFilter = 'all';
         let currentTab = 'main';
 
-        // ========== 3. دوال القراءة والكتابة من Firestore ==========
-        async function saveOrderToFirestore(order) {
-            try {
-                await db.collection("orders").doc(order.id.toString()).set(order);
-            } catch (e) {
-                console.error("خطأ في حفظ الطلب: ", e);
-            }
-        }
-
-        async function deleteOrderFromFirestore(orderId) {
-            try {
-                await db.collection("orders").doc(orderId.toString()).delete();
-            } catch (e) {
-                console.error("خطأ في حذف الطلب: ", e);
-            }
-        }
-
-        async function loadData() {
-            orders = [];
-            try {
-                const snapshot = await db.collection("orders").orderBy("id", "desc").get();
-                snapshot.forEach(doc => {
-                    orders.push({ id: doc.id, ...doc.data() });
-                });
-            } catch (e) {
-                console.error("خطأ في تحميل البيانات: ", e);
-                // رجوع للبيانات المحلية إذا فشل الاتصال
-                const saved = localStorage.getItem('noor_premium_orders');
-                if (saved) { orders = JSON.parse(saved); }
-            }
-        }
-
-        // ========== 4. إعدادات الأعمدة ==========
+        // تعريف الأعمدة
         const allColumns = [
             { id: 'date', name: 'التاريخ', visible: true }, { id: 'soNumber', name: 'رقم SO', visible: true },
             { id: 'name', name: 'اسم العميل', visible: true }, { id: 'phone', name: 'رقم الهاتف', visible: true },
@@ -364,44 +330,38 @@
             { id: 'notes', name: 'ملاحظات', visible: true }, { id: 'days', name: 'الأيام', visible: true }
         ];
 
-        // ========== 5. الوضع الليلي ==========
+        // ========== الوضع الليلي ==========
         function applyDarkMode(isDark) { if (isDark) { document.documentElement.classList.add('dark'); document.getElementById('darkModeIcon').className = 'fa-solid fa-sun'; } else { document.documentElement.classList.remove('dark'); document.getElementById('darkModeIcon').className = 'fa-solid fa-moon'; } localStorage.setItem('noor_dark_mode', isDark); }
         function toggleDarkMode() { applyDarkMode(!document.documentElement.classList.contains('dark')); }
         function loadDarkMode() { applyDarkMode(localStorage.getItem('noor_dark_mode') === 'true'); }
 
-        // ========== 6. دوال التخزين المحلي (للإعدادات فقط) ==========
+        // ========== دوال التخزين ==========
         function getColumnSettingsKey() { return 'noor_column_settings_' + (currentUser ? currentUser.username : 'default'); }
         function loadColumnSettings() { const saved = localStorage.getItem(getColumnSettingsKey()); if (saved) { JSON.parse(saved).forEach(s => { const col = allColumns.find(c => c.id === s.id); if (col) col.visible = s.visible; }); } }
         function saveColumnSettingsToStorage() { localStorage.setItem(getColumnSettingsKey(), JSON.stringify(allColumns.map(c => ({id: c.id, visible: c.visible})))); }
         function getTypeBadgeClass(type) { if (type === 'نظارة وعدسات جديدة') return 'type-new-glasses'; if (type === 'عدسات فقط') return 'type-lenses-only'; return 'type-maintenance'; }
         function getDaysSince(dateStr) { if (!dateStr) return 0; const parts = dateStr.split('/'); if (parts.length !== 3) return 0; const d = new Date(parts[2], parts[1] - 1, parts[0]); const now = new Date(); now.setHours(0,0,0,0); return Math.floor((now - d) / (1000 * 60 * 60 * 24)); }
 
-        // ========== 7. تغيير كلمة المرور ==========
-        function changePassword() { document.getElementById('passwordModal').classList.add('active'); document.getElementById('currentPassword').value = ''; document.getElementById('newPassword').value = ''; document.getElementById('confirmNewPassword').value = ''; }
-        function closePasswordModal() { document.getElementById('passwordModal').classList.remove('active'); }
-        function saveNewPassword(event) {
-            event.preventDefault();
-            const currentPass = document.getElementById('currentPassword').value;
-            const newPass = document.getElementById('newPassword').value;
-            const confirmPass = document.getElementById('confirmNewPassword').value;
-            if (currentPass !== users[currentUser.username].password) return showAlert('كلمة المرور الحالية غير صحيحة');
-            if (newPass !== confirmPass) return showAlert('كلمة المرور الجديدة غير متطابقة');
-            if (newPass.length < 3) return showAlert('كلمة المرور يجب أن تكون 3 خانات على الأقل');
-            users[currentUser.username].password = newPass;
-            saveUsers(users);
-            closePasswordModal();
-            showAlert('تم تغيير كلمة المرور بنجاح');
+        // ========== دوال Firebase ==========
+        async function saveOrderToFirestore(order) {
+            try { await db.collection("orders").doc(order.id.toString()).set(order, { merge: true }); } catch (e) { console.error(e); }
+        }
+        async function deleteOrderFromFirestore(orderId) {
+            try { await db.collection("orders").doc(orderId.toString()).delete(); } catch (e) { console.error(e); }
+        }
+        async function loadData() {
+            orders = [];
+            try { const snapshot = await db.collection("orders").orderBy("id", "desc").get(); snapshot.forEach(doc => orders.push({ id: doc.id, ...doc.data() })); } catch (e) { console.error(e); }
         }
 
-        // ========== 8. المصادقة ==========
+        // ========== المصادقة ==========
         async function login(event) {
             event.preventDefault();
             const username = document.getElementById('usernameInput').value.trim().toLowerCase();
             const password = document.getElementById('passwordInput').value.trim();
-            users = loadUsers();
-            if (users[username] && users[username].password === password) {
-                currentUser = { username, ...users[username] };
-                await loadData(); // تحميل من السحابة
+            try {
+                await auth.signInWithEmailAndPassword(username + '@noor.com', password);
+                currentUser = { username, role: username === 'admin' ? 'admin' : 'user', name: username === 'admin' ? 'مدير النظام' : 'موظف استقبال' };
                 document.getElementById('loginScreen').classList.add('hidden');
                 document.getElementById('mainApp').classList.remove('hidden');
                 document.getElementById('loggedUserInfo').innerText = currentUser.name;
@@ -411,12 +371,15 @@
                 populateBranchSelect();
                 document.querySelectorAll('.print-date').forEach(el => el.innerText = new Date().toLocaleDateString('ar-EG', { hour: '2-digit', minute: '2-digit' }));
                 document.getElementById('orderDate').value = new Date().toISOString().split('T')[0];
+                await loadData();
                 switchTab('main');
                 renderTable();
-            } else { showAlert('اسم المستخدم أو كلمة المرور غير صحيحة'); }
+            } catch (e) { showAlert('اسم المستخدم أو كلمة المرور غير صحيحة'); }
             document.getElementById('passwordInput').value = '';
         }
-        function logout() { currentUser = null; document.getElementById('mainApp').classList.add('hidden'); document.getElementById('loginScreen').classList.remove('hidden'); }
+
+        function logout() { auth.signOut(); currentUser = null; document.getElementById('mainApp').classList.add('hidden'); document.getElementById('loginScreen').classList.remove('hidden'); }
+
         function applyRolePermissions() {
             const isAdmin = currentUser?.role === 'admin';
             document.getElementById('orderFormSection').style.display = isAdmin ? '' : 'none';
@@ -426,7 +389,27 @@
             document.getElementById('tableSection').className = isAdmin ? 'lg:col-span-8 w-full' : 'lg:col-span-12 w-full';
         }
 
-        // ========== 9. الفروع ==========
+        // ========== تغيير كلمة المرور ==========
+        function changePassword() { document.getElementById('passwordModal').classList.add('active'); document.getElementById('currentPassword').value = ''; document.getElementById('newPassword').value = ''; document.getElementById('confirmNewPassword').value = ''; }
+        function closePasswordModal() { document.getElementById('passwordModal').classList.remove('active'); }
+        async function saveNewPassword(event) {
+            event.preventDefault();
+            const currentPass = document.getElementById('currentPassword').value;
+            const newPass = document.getElementById('newPassword').value;
+            const confirmPass = document.getElementById('confirmNewPassword').value;
+            if (newPass !== confirmPass) return showAlert('كلمة المرور الجديدة غير متطابقة');
+            if (newPass.length < 6) return showAlert('كلمة المرور يجب أن تكون 6 خانات على الأقل');
+            try {
+                const user = auth.currentUser;
+                const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPass);
+                await user.reauthenticateWithCredential(credential);
+                await user.updatePassword(newPass);
+                closePasswordModal();
+                showAlert('تم تغيير كلمة المرور بنجاح');
+            } catch (e) { showAlert('كلمة المرور الحالية غير صحيحة'); }
+        }
+
+        // ========== الفروع ==========
         function saveBranches() { localStorage.setItem('noor_branches', JSON.stringify(branches)); populateBranchSelect(); }
         function switchBranch(b) { currentBranch = b; localStorage.setItem('noor_current_branch', b); document.getElementById('currentBranchName').innerText = b; renderTable(); if (currentTab === 'reports') renderAllReports(); }
         function populateBranchSelect() { document.getElementById('branchSelect').innerHTML = branches.map(b => `<option value="${b}" ${b===currentBranch?'selected':''}>${b}</option>`).join(''); }
@@ -437,10 +420,10 @@
         function editBranch(index) { const newName = prompt('اسم الفرع الجديد:', branches[index]); if (newName && newName.trim() && !branches.includes(newName.trim())) { const old = branches[index]; branches[index] = newName.trim(); orders.forEach(o => { if (o.branch === old) o.branch = newName.trim(); }); if (currentBranch === old) switchBranch(newName.trim()); saveBranches(); renderBranchesList(); renderTable(); } else if (newName && branches.includes(newName.trim())) showAlert('الفرع موجود'); }
         function deleteBranch(index) { if (branches.length <= 1) return showAlert('يجب وجود فرع واحد على الأقل'); const branchToDelete = branches[index]; showConfirm(`حذف فرع "${branchToDelete}" سينقل طلباته إلى "عام". متابعة؟`, function(ok) { if (ok) { orders.forEach(o => { if (o.branch === branchToDelete) o.branch = 'عام'; }); branches.splice(index, 1); if (currentBranch === branchToDelete) switchBranch(branches[0]); saveBranches(); renderBranchesList(); renderTable(); } }); }
 
-        // ========== 10. التبويبات ==========
+        // ========== التبويبات ==========
         function switchTab(tab) { currentTab = tab; document.getElementById('mainTabContent').classList.toggle('hidden', tab !== 'main'); document.getElementById('reportsTabContent').classList.toggle('hidden', tab !== 'reports'); ['tabMain','tabReports'].forEach(id => document.getElementById(id).classList.remove('text-white','border-b-2','border-yellow-400')); document.getElementById(tab === 'main' ? 'tabMain' : 'tabReports').classList.add('text-white','border-b-2','border-yellow-400'); if (tab === 'reports') renderAllReports(); }
 
-        // ========== 11. النموذج ==========
+        // ========== النموذج ==========
         function toggleOrderForm() { if (!currentUser || currentUser.role !== 'admin') return; const c = document.getElementById('formCollapsible'), i = document.getElementById('formToggleIcon'); c.classList.toggle('open'); i.classList.toggle('fa-chevron-up'); i.classList.toggle('fa-chevron-down'); }
         function openQuickAdd() { if (!currentUser || currentUser.role !== 'admin') return; const c = document.getElementById('formCollapsible'), i = document.getElementById('formToggleIcon'); if (!c.classList.contains('open')) { c.classList.add('open'); i.classList.replace('fa-chevron-down','fa-chevron-up'); } document.getElementById('orderDate').value = new Date().toISOString().split('T')[0]; document.getElementById('custName').value = 'عميل كاش'; document.getElementById('custPhone').value = 'غير متوفر'; document.getElementById('orderSoNumber').value = ''; document.getElementById('totalPrice').value = ''; document.getElementById('paidAmount').value = '0'; document.getElementById('remainingAmount').value = '0'; document.getElementById('orderNotes').value = ''; document.getElementById('orderStatus').value = 'في المكتب'; document.getElementById('deliveryStatus').value = 'لم يتم'; document.getElementById('custName').focus(); }
         function calcRemaining() { let t = parseFloat(document.getElementById('totalPrice').value)||0, p = parseFloat(document.getElementById('paidAmount').value)||0; document.getElementById('remainingAmount').value = Math.max(0, t-p); }
@@ -456,7 +439,7 @@
             let total = parseFloat(document.getElementById('totalPrice').value)||0, paid = parseFloat(document.getElementById('paidAmount').value)||0;
             let newOrder = { id: Date.now(), date: formattedDate, branch: currentBranch, soNumber: document.getElementById('orderSoNumber').value.trim(), name: document.getElementById('custName').value.trim(), phone: document.getElementById('custPhone').value.trim(), type: document.getElementById('orderType').value, status: document.getElementById('orderStatus').value, delivery: document.getElementById('deliveryStatus').value, notes: document.getElementById('orderNotes').value.trim(), total, paid, remaining: total - paid };
             orders.unshift(newOrder);
-            await saveOrderToFirestore(newOrder); // حفظ في السحابة
+            await saveOrderToFirestore(newOrder);
             this.reset();
             document.getElementById('orderDate').value = new Date().toISOString().split('T')[0];
             document.getElementById('remainingAmount').value = 0;
@@ -464,28 +447,28 @@
             renderTable();
         });
 
-        // ========== 12. عمليات الجدول ==========
+        // ========== عمليات الجدول ==========
         async function toggleStatus(id) { if (!currentUser || currentUser.role !== 'admin') return; let o = orders.find(o=>o.id==id); if (o) { o.status = o.status==='في المكتب'?'بالمحل':'في المكتب'; await saveOrderToFirestore(o); renderTable(); } }
         async function toggleDelivery(id) { if (!currentUser || currentUser.role !== 'admin') return; let o = orders.find(o=>o.id==id); if (o) { o.delivery = o.delivery==='لم يتم'?'تم التسليم':'لم يتم'; await saveOrderToFirestore(o); renderTable(); } }
         async function deleteOrder(id) { if (!currentUser || currentUser.role !== 'admin') return; showConfirm("هل أنت متأكد من حذف هذا الطلب؟", async function(ok) { if (ok) { orders = orders.filter(o=>o.id!==id); await deleteOrderFromFirestore(id); renderTable(); } }); }
 
-        // ========== 13. مودال التعديل ==========
+        // ========== مودال التعديل ==========
         function openEditModal(id) { if (!currentUser || currentUser.role !== 'admin') return; let o = orders.find(o=>o.id===id); if (!o) return; document.getElementById('editId').value = o.id; const parts = o.date.split('/'); if (parts.length === 3) document.getElementById('editDate').value = `${parts[2]}-${parts[1]}-${parts[0]}`; else document.getElementById('editDate').value = ''; document.getElementById('editName').value = o.name; document.getElementById('editPhone').value = o.phone; document.getElementById('editSoNumber').value = o.soNumber || ''; document.getElementById('editType').value = o.type; document.getElementById('editStatus').value = o.status; document.getElementById('editDelivery').value = o.delivery || 'لم يتم'; document.getElementById('editTotal').value = o.total; document.getElementById('editPaid').value = o.paid; document.getElementById('editRemaining').value = o.remaining; document.getElementById('editNotes').value = o.notes || ''; document.getElementById('editModal').classList.add('active'); }
         function closeEditModal() { document.getElementById('editModal').classList.remove('active'); }
         document.getElementById('editForm').addEventListener('submit', async function(e) { e.preventDefault(); if (!currentUser || currentUser.role !== 'admin') return; let id = parseInt(document.getElementById('editId').value); let o = orders.find(o=>o.id===id); if (o) { const dateValue = document.getElementById('editDate').value; if (!dateValue) return showAlert('يرجى اختيار التاريخ'); const [y, m, d] = dateValue.split('-'); o.date = `${d}/${m}/${y}`; o.name = document.getElementById('editName').value; o.phone = document.getElementById('editPhone').value; o.soNumber = document.getElementById('editSoNumber').value; o.type = document.getElementById('editType').value; o.status = document.getElementById('editStatus').value; o.delivery = document.getElementById('editDelivery').value; o.total = parseFloat(document.getElementById('editTotal').value)||0; o.paid = parseFloat(document.getElementById('editPaid').value)||0; o.remaining = Math.max(0, o.total - o.paid); o.notes = document.getElementById('editNotes').value; await saveOrderToFirestore(o); renderTable(); closeEditModal(); } });
 
-        // ========== 14. تخصيص الأعمدة ==========
+        // ========== تخصيص الأعمدة ==========
         function openColumnSettings() { document.getElementById('columnsCheckboxes').innerHTML = allColumns.map(col => `<label class="flex items-center gap-3 p-2 hover:bg-white/40 dark:hover:bg-slate-700/40 rounded-lg cursor-pointer"><input type="checkbox" ${col.visible?'checked':''} data-column-id="${col.id}" class="column-checkbox w-4 h-4 text-sky-500 rounded"><span class="text-sm font-medium text-slate-700 dark:text-slate-200">${col.name}</span></label>`).join(''); document.getElementById('columnSettingsModal').classList.add('active'); }
         function closeColumnSettings() { document.getElementById('columnSettingsModal').classList.remove('active'); }
         function saveColumnSettings() { document.querySelectorAll('.column-checkbox').forEach(cb => { const col = allColumns.find(c => c.id === cb.dataset.columnId); if (col) col.visible = cb.checked; }); saveColumnSettingsToStorage(); closeColumnSettings(); renderTable(); }
 
-        // ========== 15. الفلاتر والبحث ==========
+        // ========== الفلاتر والبحث ==========
         function filterTable(type) { currentFilter = type; document.querySelectorAll('.filter-btn').forEach(b => { b.classList.remove('bg-white','dark:bg-slate-500','text-sky-700','dark:text-white','shadow-sm'); b.classList.add('text-slate-600','dark:text-slate-300'); }); const active = document.getElementById({ office:'btnFilterOffice', shop:'btnFilterShop', debt:'btnFilterDebt', all:'btnFilterAll' }[type] || 'btnFilterAll'); if (active) { active.classList.add('bg-white','dark:bg-slate-500','text-sky-700','dark:text-white','shadow-sm'); active.classList.remove('text-slate-600','dark:text-slate-300'); } renderTable(); }
         function searchOrders() { renderTable(); }
 
         function sendWhatsApp(phone, name) { if (!phone || phone === 'غير متوفر') { showAlert('رقم الهاتف غير متوفر'); return; } let clean = phone.replace(/[^\d]/g, ''); if (!clean.startsWith('2')) clean = '2' + clean; window.open(`https://wa.me/${clean}?text=${encodeURIComponent(`مرحباً ${name}،\nنود إعلامك بحالة طلبك في نور للبصريات.`)}`, '_blank'); }
 
-        // ========== 16. عرض الجدول ==========
+        // ========== عرض الجدول ==========
         function renderTable() {
             const visibleCols = allColumns.filter(c => c.visible);
             const isAdmin = currentUser?.role === 'admin';
@@ -612,7 +595,6 @@
             printWin.print();
         }
 
-        // ========== 17. التصدير والاستيراد ==========
         function exportExcel() {
             let branchOrders = orders.filter(o => (o.branch || 'رشيد') === currentBranch);
             let data = branchOrders.map(o => ({ "التاريخ": o.date, "الفرع": o.branch||'', "رقم SO": o.soNumber||"", "العميل": o.name, "الهاتف": o.phone, "النوع": o.type, "الإجمالي": o.total, "المدفوع": o.paid, "المتبقي": o.remaining, "التواجد": o.status, "التسليم": o.delivery||"لم يتم", "ملاحظات": o.notes||"", "أيام": getDaysSince(o.date) }));
@@ -636,7 +618,6 @@
                     if(Array.isArray(data)) {
                         showConfirm("استبدال بيانات الفرع الحالي أم دمجها؟", async function(replace) {
                             if(replace) {
-                                // حذف كل طلبات الفرع الحالي من Firestore
                                 const snapshot = await db.collection("orders").where("branch", "==", currentBranch).get();
                                 const batch = db.batch();
                                 snapshot.docs.forEach(doc => batch.delete(doc.ref));
