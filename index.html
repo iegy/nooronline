@@ -331,17 +331,21 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
         // دالة عامة لحفظ البيانات
-        function saveData() {
-            localStorage.setItem('noor_premium_orders', JSON.stringify(orders));
-            // لتوصيل Firebase: استخدم db.collection("orders").doc(order.id).set(orderData);
-        }
+        async function saveData() {
+    // هتحفظ الطلب الجديد (أو المعدل) في Firestore
+    for (let order of orders) {
+        await db.collection("orders").doc(order.id.toString()).set(order);
+    }
+}
 
         // دالة عامة لتحميل البيانات
         async function loadData() {
-            // لتوصيل Firebase: استخدم orders = await db.collection("orders").get();
-            const saved = localStorage.getItem('noor_premium_orders');
-            if (saved) { orders = JSON.parse(saved); }
-        }
+    orders = [];
+    const snapshot = await db.collection("orders").orderBy("id", "desc").get();
+    snapshot.forEach(doc => {
+        orders.push({ id: doc.id, ...doc.data() });
+    });
+}
 
         // تعريف الأعمدة
         const allColumns = [
